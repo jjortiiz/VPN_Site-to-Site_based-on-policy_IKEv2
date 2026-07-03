@@ -1,0 +1,343 @@
+ISP
+
+
+enable
+configure terminal
+hostname ISP
+no ip domain-lookup
+
+interface e0/0
+description CONEXION_R1
+ip add 198.50.100.1 255.255.255.252
+no shutdown
+exit
+
+interface e0/1
+description CONEXION_R2
+ip add 198.50.100.5 255.255.255.252
+no shutdown
+exit
+
+
+
+**************************************************************************************************
+
+R1
+
+enable
+configure terminal
+hostname R1
+no ip domain-lookup
+
+banner motd #
+************************************
+*     SOLO PERSONAL AUTORIZADO     * 
+*    El acceso esta restringido    *
+*      Underwater Incorporated     *
+************************************
+#
+
+interface e0/1
+description CONEXION_ISP
+ip add 198.50.100.2 255.255.255.252
+no shutdown
+exit
+
+interface e0/0
+no shutdown
+exit
+
+interface e0/0.10
+encapsulation dot1q 10
+description VLAN_Gestion
+ip address 8.61.10.1 255.255.255.128
+exit
+
+interface e0/0.20
+encapsulation dot1q 20
+description VLAN_Finanzas
+ip address 8.61.10.129 255.255.255.128
+exit
+
+ip dhcp excluded-address 8.61.10.1 
+ip dhcp pool GESTION
+network 8.61.10.0 255.255.255.128
+default-router 8.61.10.1
+dns-server 8.8.8.8
+domain-name underwater.com
+
+ip dhcp excluded-address 8.61.10.129 
+ip dhcp pool FINANZAS
+network 8.61.10.128 255.255.255.128
+default-router 8.61.10.129
+dns-server 8.8.8.8
+domain-name underwater.com
+
+ip route 0.0.0.0 0.0.0.0 198.50.100.1
+
+ip access-list extended ACL_VPN_R1_R2
+permit ip 8.61.10.0 0.0.0.127 8.61.20.0 0.0.0.127
+permit ip 8.61.10.0 0.0.0.127 8.61.20.128 0.0.0.127
+permit ip 8.61.10.128 0.0.0.127 8.61.20.0 0.0.0.127
+permit ip 8.61.10.128 0.0.0.127 8.61.20.128 0.0.0.127
+exit
+
+crypto ikev2 proposal PROP_IKEv2_R1
+encryption aes-cbc-256
+integrity sha256
+group 14
+exit
+
+crypto ikev2 policy POL_IKEv2_R1
+match fvrf any
+proposal PROP_IKEv2_R1
+exit
+
+crypto ikev2 keyring KEY_R1
+peer R2
+address 198.50.100.6
+pre-shared-key local Welcome*
+pre-shared-key remote Welcome*
+exit
+exit
+
+crypto ikev2 profile PROFILE_R1
+match identity remote address 198.50.100.6 255.255.255.255
+identity local address 198.50.100.2
+authentication remote pre-share
+authentication local pre-share
+keyring local KEY_R1
+exit
+
+crypto ipsec transform-set SET_IPSEC_R1 esp-aes 256 esp-sha256-hmac
+mode tunnel
+exit
+
+crypto map MAP_VPN_R1 10 ipsec-isakmp
+set peer 198.50.100.6
+set transform-set SET_IPSEC_R1
+set ikev2-profile PROFILE_R1
+match address ACL_VPN_R1_R2
+exit
+
+interface e0/1
+crypto map MAP_VPN_R1
+exit
+
+
+**************************************************************************************************
+
+
+SW1
+
+enable
+configure terminal
+hostname SW1
+no ip domain-lookup
+
+banner motd #
+************************************
+*     SOLO PERSONAL AUTORIZADO     * 
+*    El acceso esta restringido    *
+*      Underwater Incorporated     *
+************************************
+#
+
+vlan 10
+name GESTION
+vlan 20
+name FINANZAS
+vlan 666
+name BLACKHULL
+exit
+
+interface e0/0
+description CONEXION_R1
+duplex half
+switchport trunk encapsulation dot1q
+switchport mode trunk
+exit
+
+interface e0/1
+description Acceso_VLAN_10
+switchport mode access
+switchport access vlan 10
+exit
+
+interface e0/2
+description Acceso_VLAN_20
+switchport mode access
+switchport access vlan 20
+exit
+
+interface e0/3
+description PUERTO_SIN_USAR
+switchport mode access
+switchport access vlan 20
+shutdown
+exit
+
+
+
+**************************************************************************************************
+
+R2
+
+enable
+configure terminal
+hostname R2
+no ip domain-lookup
+
+banner motd #
+************************************
+*     SOLO PERSONAL AUTORIZADO     * 
+*    El acceso esta restringido    *
+*      Underwater Incorporated     *
+************************************
+#
+
+interface e0/1
+description CONEXION_ISP
+ip add 198.50.100.6 255.255.255.252
+no shutdown
+exit
+
+interface e0/0
+no shutdown
+exit
+
+interface e0/0.30
+encapsulation dot1q 30
+description VLAN_Ventas
+ip address 8.61.20.1 255.255.255.128
+exit
+
+interface e0/0.40
+encapsulation dot1q 40
+description VLAN_Compras
+ip address 8.61.20.129 255.255.255.128
+exit
+
+ip dhcp excluded-address 8.61.20.1 
+ip dhcp pool VENTAS
+network 8.61.20.0 255.255.255.128
+default-router 8.61.20.1
+dns-server 8.8.8.8
+domain-name underwater.com
+
+ip dhcp excluded-address 8.61.20.129 
+ip dhcp pool COMPRAS
+network 8.61.20.128 255.255.255.128
+default-router 8.61.20.129
+dns-server 8.8.8.8
+domain-name underwater.com
+exit
+
+ip route 0.0.0.0 0.0.0.0 198.50.100.5
+
+ip access-list extended ACL_VPN_R2_R1
+permit ip 8.61.20.0 0.0.0.127 8.61.10.0 0.0.0.127
+permit ip 8.61.20.0 0.0.0.127 8.61.10.128 0.0.0.127
+permit ip 8.61.20.128 0.0.0.127 8.61.10.0 0.0.0.127
+permit ip 8.61.20.128 0.0.0.127 8.61.10.128 0.0.0.127
+exit
+
+crypto ikev2 proposal PROP_IKEv2_R2
+encryption aes-cbc-256
+integrity sha256
+group 14
+exit
+
+crypto ikev2 policy POL_IKEv2_R2
+match fvrf any
+proposal PROP_IKEv2_R2
+exit
+
+crypto ikev2 keyring KEY_R2
+peer R1
+address 198.50.100.2
+pre-shared-key local Welcome*
+pre-shared-key remote Welcome*
+exit
+
+exit
+
+crypto ikev2 profile PROFILE_R2
+match identity remote address 198.50.100.2 255.255.255.255
+identity local address 198.50.100.6
+authentication remote pre-share
+authentication local pre-share
+keyring local KEY_R2
+exit
+
+crypto ipsec transform-set SET_IPSEC_R2 esp-aes 256 esp-sha256-hmac
+mode tunnel
+exit
+
+crypto map MAP_VPN_R2 10 ipsec-isakmp
+set peer 198.50.100.2
+set transform-set SET_IPSEC_R2
+set ikev2-profile PROFILE_R2
+match address ACL_VPN_R2_R1
+exit
+
+interface e0/1
+crypto map MAP_VPN_R2
+exit
+
+
+
+**************************************************************************************************
+
+
+SW2
+
+enable
+configure terminal
+hostname SW2
+no ip domain-lookup
+
+banner motd #
+************************************
+*     SOLO PERSONAL AUTORIZADO     * 
+*    El acceso esta restringido    *
+*      Underwater Incorporated     *
+************************************
+#
+
+vlan 30
+name VENTAS
+vlan 40
+name COMPRAS
+vlan 666
+name BLACKHULL
+exit
+
+interface e0/0
+description CONEXION_R2
+duplex half
+switchport trunk encapsulation dot1q
+switchport mode trunk
+exit
+
+interface e0/1
+description Acceso_VLAN_30
+switchport mode access
+switchport access vlan 30
+exit
+
+interface e0/2
+description Acceso_VLAN_40
+switchport mode access
+switchport access vlan 40
+exit
+
+interface e0/3
+description PUERTO_SIN_USAR
+switchport mode access
+switchport access vlan 666
+shutdown
+exit
+
+
+
